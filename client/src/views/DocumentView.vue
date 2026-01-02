@@ -190,6 +190,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+@reference "../assets/main.css";
 .prose {
   @apply text-gray-800 leading-relaxed;
 }

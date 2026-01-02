@@ -21,6 +21,14 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // API路由
 app.use('/api', require('./routes'));
 
+// 生产环境服务前端静态文件
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../client/dist')));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+  });
+}
+
 // 健康检查
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
