@@ -5,20 +5,43 @@ const marked = require('marked');
 exports.createDocument = (req, res) => {
   const { title, content, project_id, version } = req.body;
   const author_id = req.user.id;
+  
+  let file_path = null;
+  let file_name = null;
+  let file_size = null;
+  let file_type = null;
+
+  if (req.file) {
+    file_path = req.file.path;
+    file_name = req.file.originalname;
+    file_size = req.file.size;
+    file_type = req.file.mimetype;
+  }
 
   db.run(
-    'INSERT INTO documents (title, content, project_id, author_id, version) VALUES (?, ?, ?, ?, ?)',
-    [title, content, project_id, author_id, version || '1.0'],
+    'INSERT INTO documents (title, content, project_id, author_id, version, file_path, file_name, file_size, file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [title, content, project_id, author_id, version || '1.0', file_path, file_name, file_size, file_type],
     function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
       res.status(201).json({
         message: 'Document created successfully',
-        document: { id: this.lastID, title, content, project_id, author_id, version }
+        document: { id: this.lastID, title, content, project_id, author_id, version, file_name }
       });
     }
   );
+};
+
+// 下载文档文件
+exports.downloadFile = (req, res) => {
+  const { id } = req.params;
+  db.get('SELECT file_path, file_name FROM documents WHERE id = ?', [id], (err, doc) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!doc || !doc.file_path) return res.status(404).json({ error: 'File not found' });
+    
+    res.download(doc.file_path, doc.file_name);
+  });
 };
 
 // 获取项目的所有文档

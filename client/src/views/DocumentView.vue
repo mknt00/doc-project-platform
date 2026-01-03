@@ -1,151 +1,103 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <div v-if="loading" class="text-center py-12">
-      <div class="text-gray-500">加载中...</div>
+  <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div v-if="loading" class="flex justify-center items-center min-h-screen">
+      <Loader class="w-8 h-8 text-blue-400 animate-spin" />
     </div>
 
-    <div v-else-if="document" class="max-w-4xl mx-auto">
-      <div class="bg-white rounded-lg shadow-md p-8">
-        <!-- 文档头部 -->
-        <div class="border-b border-gray-200 pb-6 mb-6">
-          <div class="flex justify-between items-start mb-4">
-            <h1 class="text-3xl font-bold text-gray-800">{{ document.title }}</h1>
+    <div v-else-if="docData" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- 文档头部 -->
+      <div class="bg-slate-800/50 backdrop-blur border border-slate-700/50 rounded-xl p-8 mb-8">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h1 class="text-4xl font-bold text-white mb-2">{{ docData.title }}</h1>
+            <div class="flex items-center space-x-4 text-slate-400 text-sm">
+              <div class="flex items-center space-x-2">
+                <User class="w-4 h-4" />
+                <span>{{ docData.author_name }}</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <Calendar class="w-4 h-4" />
+                <span>{{ formatDate(docData.updated_at) }}</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <FileText class="w-4 h-4" />
+                <span>版本 {{ docData.version }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-2">
             <span
               class="px-4 py-2 rounded-full text-sm font-medium"
-              :class="document.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
+              :class="docData.status === 'published' ? 'bg-green-500/20 text-green-400' : 'bg-slate-700/50 text-slate-400'"
             >
-              {{ document.status === 'published' ? '已发布' : '草稿' }}
+              {{ docData.status === 'published' ? '已发布' : '草稿' }}
             </span>
-          </div>
-
-          <div class="flex flex-wrap gap-4 text-sm text-gray-600">
-            <div>作者: {{ document.author_name }}</div>
-            <div>项目: {{ document.project_name }}</div>
-            <div>版本: {{ document.version }}</div>
-            <div>更新时间: {{ formatDate(document.updated_at) }}</div>
-          </div>
-
-          <div class="mt-4 flex gap-3">
             <button
-              v-if="document.status === 'draft'"
-              @click="publishDocument"
-              class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+              v-if="docData.file_path"
+              @click="downloadFile"
+              class="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors font-medium"
             >
-              发布文档
-            </button>
-            <button
-              @click="editDocument"
-              class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              编辑文档
-            </button>
-            <button
-              @click="goBack"
-              class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300"
-            >
-              返回
+              <Download class="w-4 h-4" />
+              <span>下载</span>
             </button>
           </div>
         </div>
 
-        <!-- 文档内容 -->
-        <div class="prose max-w-none" v-html="document.html_content"></div>
+        <!-- 文件信息 -->
+        <div v-if="docData.file_name" class="mt-4 p-4 rounded-lg bg-slate-700/50 border border-slate-600/50">
+          <div class="flex items-center space-x-3">
+            <Paperclip class="w-5 h-5 text-blue-400" />
+            <div class="flex-1">
+              <div class="font-medium text-white">{{ docData.file_name }}</div>
+              <div class="text-sm text-slate-400">{{ formatFileSize(docData.file_size) }}</div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <!-- 编辑模态框 -->
-    <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <h2 class="text-2xl font-bold mb-6">编辑文档</h2>
-        <form @submit.prevent="updateDocument" class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">文档标题</label>
-            <input
-              v-model="editForm.title"
-              type="text"
-              required
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">文档内容 (支持Markdown)</label>
-            <textarea
-              v-model="editForm.content"
-              rows="16"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-            ></textarea>
-          </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">版本号</label>
-              <input
-                v-model="editForm.version"
-                type="text"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">状态</label>
-              <select
-                v-model="editForm.status"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="draft">草稿</option>
-                <option value="published">已发布</option>
-              </select>
-            </div>
-          </div>
-          <div class="flex gap-4">
-            <button
-              type="button"
-              @click="showEditModal = false"
-              class="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300"
-            >
-              取消
-            </button>
-            <button
-              type="submit"
-              class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
-            >
-              保存
-            </button>
-          </div>
-        </form>
+      <!-- 文档内容 -->
+      <div class="bg-slate-800/50 backdrop-blur border border-slate-700/50 rounded-xl p-8 prose prose-invert max-w-none">
+        <div v-html="renderedContent" class="text-slate-300 leading-relaxed"></div>
+      </div>
+
+      <!-- 返回按钮 -->
+      <div class="mt-8">
+        <button
+          @click="goBack"
+          class="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-slate-800/50 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors font-medium"
+        >
+          <ArrowLeft class="w-4 h-4" />
+          <span>返回项目</span>
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../services/api';
+import { marked } from 'marked';
+import { Loader, User, Calendar, FileText, Download, Paperclip, ArrowLeft } from 'lucide-vue-next';
 
 const route = useRoute();
 const router = useRouter();
 const documentId = Number(route.params.id);
 
-const document = ref<any>(null);
+const docData = ref<any>(null);
 const loading = ref(true);
-const showEditModal = ref(false);
-const editForm = ref({
-  title: '',
-  content: '',
-  version: '',
-  status: 'draft',
+
+const renderedContent = computed(() => {
+  if (!docData.value?.content) return '';
+  return marked(docData.value.content);
 });
 
 const fetchDocument = async () => {
   try {
     loading.value = true;
     const response = await api.documents.getById(documentId);
-    document.value = response.data;
-    editForm.value = {
-      title: document.value.title,
-      content: document.value.content,
-      version: document.value.version,
-      status: document.value.status,
-    };
+    docData.value = response.data;
   } catch (error) {
     console.error('Failed to fetch document:', error);
   } finally {
@@ -153,35 +105,35 @@ const fetchDocument = async () => {
   }
 };
 
-const editDocument = () => {
-  showEditModal.value = true;
-};
-
-const updateDocument = async () => {
+const downloadFile = async () => {
   try {
-    await api.documents.update(documentId, editForm.value);
-    showEditModal.value = false;
-    await fetchDocument();
+    const response = await api.documents.download(documentId);
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = window.document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', docData.value.file_name);
+    window.document.body.appendChild(link);
+    link.click();
+    link.parentNode?.removeChild(link);
   } catch (error) {
-    console.error('Failed to update document:', error);
+    console.error('Failed to download file:', error);
   }
 };
 
-const publishDocument = async () => {
-  try {
-    await api.documents.publish(documentId);
-    await fetchDocument();
-  } catch (error) {
-    console.error('Failed to publish document:', error);
-  }
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('zh-CN');
+};
+
+const formatFileSize = (bytes: number): string => {
+  if (!bytes) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 };
 
 const goBack = () => {
   router.back();
-};
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleString('zh-CN');
 };
 
 onMounted(() => {
@@ -191,47 +143,61 @@ onMounted(() => {
 
 <style scoped>
 @reference "../assets/main.css";
-.prose {
-  @apply text-gray-800 leading-relaxed;
+:deep(.prose) {
+  @apply text-slate-300;
 }
 
-.prose :deep(h1) {
-  @apply text-3xl font-bold mt-8 mb-4;
+:deep(.prose h1) {
+  @apply text-3xl font-bold mt-8 mb-4 text-white;
 }
 
-.prose :deep(h2) {
-  @apply text-2xl font-bold mt-6 mb-3;
+:deep(.prose h2) {
+  @apply text-2xl font-bold mt-6 mb-3 text-white;
 }
 
-.prose :deep(h3) {
-  @apply text-xl font-bold mt-4 mb-2;
+:deep(.prose h3) {
+  @apply text-xl font-bold mt-4 mb-2 text-white;
 }
 
-.prose :deep(p) {
-  @apply mb-4;
+:deep(.prose p) {
+  @apply mb-4 leading-relaxed;
 }
 
-.prose :deep(ul), .prose :deep(ol) {
-  @apply ml-6 mb-4;
+:deep(.prose ul),
+:deep(.prose ol) {
+  @apply mb-4 ml-6;
 }
 
-.prose :deep(li) {
+:deep(.prose li) {
   @apply mb-2;
 }
 
-.prose :deep(code) {
-  @apply bg-gray-100 px-2 py-1 rounded text-sm font-mono;
+:deep(.prose code) {
+  @apply bg-slate-700/50 px-2 py-1 rounded text-blue-400 font-mono text-sm;
 }
 
-.prose :deep(pre) {
-  @apply bg-gray-100 p-4 rounded overflow-x-auto mb-4;
+:deep(.prose pre) {
+  @apply bg-slate-700/50 p-4 rounded-lg mb-4 overflow-x-auto;
 }
 
-.prose :deep(blockquote) {
-  @apply border-l-4 border-gray-300 pl-4 italic my-4;
+:deep(.prose a) {
+  @apply text-blue-400 hover:text-blue-300 transition-colors;
 }
 
-.prose :deep(a) {
-  @apply text-blue-600 hover:underline;
+:deep(.prose blockquote) {
+  @apply border-l-4 border-blue-500 pl-4 py-2 my-4 text-slate-400 italic;
+}
+
+:deep(.prose table) {
+  @apply w-full border-collapse mb-4;
+}
+
+:deep(.prose th),
+:deep(.prose td) {
+  @apply border border-slate-700 px-4 py-2 text-left;
+}
+
+:deep(.prose th) {
+  @apply bg-slate-700/50 font-semibold;
 }
 </style>

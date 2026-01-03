@@ -1,6 +1,19 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
 const { authMiddleware } = require('../middleware/auth');
+
+// 配置 Multer 用于文件上传
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'server/uploads/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const upload = multer({ storage });
 
 // Controllers
 const userController = require('../controllers/userController');
@@ -30,9 +43,10 @@ router.post('/projects/:id/members', projectController.addProjectMember);
 router.delete('/projects/:id/members/:userId', projectController.removeProjectMember);
 
 // 文档路由
-router.post('/documents', documentController.createDocument);
+router.post('/documents', upload.single('file'), documentController.createDocument);
 router.get('/projects/:projectId/documents', documentController.getDocumentsByProject);
 router.get('/documents/:id', documentController.getDocumentById);
+router.get('/documents/:id/download', documentController.downloadFile);
 router.put('/documents/:id', documentController.updateDocument);
 router.post('/documents/:id/publish', documentController.publishDocument);
 router.delete('/documents/:id', documentController.deleteDocument);

@@ -58,11 +58,14 @@ export default {
   documents: {
     getByProject: (projectId: number) => api.get(`/projects/${projectId}/documents`),
     getById: (id: number) => api.get(`/documents/${id}`),
-    create: (data: any) => api.post('/documents', data),
+    create: (data: FormData) => api.post('/documents', data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
     update: (id: number, data: any) => api.put(`/documents/${id}`, data),
     publish: (id: number) => api.post(`/documents/${id}/publish`),
     delete: (id: number) => api.delete(`/documents/${id}`),
     getPublished: () => api.get('/documents/published'),
+    download: (id: number) => api.get(`/documents/${id}/download`, { responseType: 'blob' }),
   },
 
   // 任务
