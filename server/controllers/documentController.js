@@ -13,7 +13,8 @@ exports.createDocument = (req, res) => {
 
   if (req.file) {
     file_path = req.file.path;
-    file_name = req.file.originalname;
+    // 修复中文文件名乱码问题
+    file_name = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
     file_size = req.file.size;
     file_type = req.file.mimetype;
   }

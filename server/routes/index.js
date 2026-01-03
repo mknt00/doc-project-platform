@@ -10,7 +10,9 @@ const storage = multer.diskStorage({
     cb(null, 'server/uploads/');
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + file.originalname);
+    // 修复中文文件名乱码问题：将 latin1 编码转回 utf8
+    const utf8Name = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    cb(null, Date.now() + '-' + utf8Name);
   }
 });
 const upload = multer({ storage });
